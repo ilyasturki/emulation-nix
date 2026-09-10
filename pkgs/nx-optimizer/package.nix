@@ -2,7 +2,6 @@
   lib,
   stdenvNoCC,
   fetchFromGitHub,
-  fetchurl,
   python3,
   autoPatchelfHook,
   makeWrapper,
@@ -24,8 +23,11 @@ let
     version = "0.6.2";
     format = "wheel";
 
-    src = fetchurl {
-      url = "https://files.pythonhosted.org/packages/py3/t/tkinterdnd2/tkinterdnd2-${version}-py3-none-any.whl";
+    src = python3.pkgs.fetchPypi {
+      inherit pname version;
+      format = "wheel";
+      dist = "py3";
+      python = "py3";
       hash = "sha256-tqiyKdJihsAiuy+9MRwuQx5Nm7q4EzvoDpyY57z5/lk=";
     };
 
