@@ -12,6 +12,10 @@
   # GPU detection shells out to glxinfo on non-NVIDIA hardware; it only feeds
   # the log header and the benchmark share text, but is free to satisfy.
   mesa-demos,
+  # pyperclip has no in-process backend: it execs one of these, and raises if
+  # it finds none. The benchmark share button calls it without a try/except.
+  wl-clipboard,
+  xclip,
 }:
 let
   # Absent from nixpkgs, and run.py imports it unconditionally for the
@@ -134,7 +138,13 @@ stdenvNoCC.mkDerivation {
     # working directory, so pin one instead of littering wherever it was started.
     makeWrapper "${pythonEnv}/bin/python" "$out/bin/nx-optimizer" \
       --add-flags "$out/share/nx-optimizer/run.py" \
-      --prefix PATH : "${lib.makeBinPath [ mesa-demos ]}" \
+      --prefix PATH : "${
+        lib.makeBinPath [
+          mesa-demos
+          wl-clipboard
+          xclip
+        ]
+      }" \
       --run 'state="''${XDG_DATA_HOME:-$HOME/.local/share}/nx-optimizer"; mkdir -p "$state"; cd "$state"'
 
     runHook postInstall
