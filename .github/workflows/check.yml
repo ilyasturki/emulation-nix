@@ -9,7 +9,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # main is the only ref that populates the cache, and a cold matrix runs for
+  # hours; cancelling it on the next push means it never finishes one.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -48,10 +50,12 @@ jobs:
           df -h /
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@v23
 
       - name: Set up Cachix
         uses: cachix/cachix-action@v17
+        # A cache outage, or a fork PR with no token, must not mask the build.
+        continue-on-error: true
         with:
           name: emulation-nix
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -69,7 +73,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@v23
 
       - name: Evaluate every flake output
         run: nix flake check --no-build --all-systems
