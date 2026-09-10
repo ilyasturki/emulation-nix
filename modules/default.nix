@@ -10,12 +10,7 @@ let
     options.programs.${name} = {
       enable = lib.mkEnableOption description;
 
-      package = lib.mkOption {
-        type = lib.types.package;
-        default = pkgs.${name};
-        defaultText = lib.literalExpression "pkgs.${name}";
-        description = "The ${name} package to use.";
-      };
+      package = lib.mkPackageOption pkgs name { };
     };
 
     config = lib.mkIf config.programs.${name}.enable {
