@@ -5,8 +5,8 @@
 # tree. Building and verifying is CI's job, not this script's.
 #
 # Usage:
-#   ./scripts/update.sh              # all packages
-#   ONLY=citron-neo ./scripts/update.sh
+#   nix develop --command ./scripts/update.sh              # all packages
+#   ONLY=citron-neo nix develop --command ./scripts/update.sh
 
 set -uo pipefail
 
@@ -14,25 +14,36 @@ REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 cd "$REPO_ROOT" || exit 1
 
 ONLY="${ONLY:-}"
+MATCHED=0
 declare -a BUMPED=() UPTODATE=() FAILED=()
 
-hdr() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+# This log becomes the update PR's body, where escapes would be literal.
+if [ -t 1 ]; then BOLD=$'\033[1m' RESET=$'\033[0m'; else BOLD='' RESET=''; fi
+
+hdr() { printf '\n%s==> %s%s\n' "$BOLD" "$*" "$RESET"; }
 log() { printf '    %s\n' "$*"; }
 want() { [ -z "$ONLY" ] || [ "$ONLY" = "$1" ]; }
 
-# Metachar-safe literal in-place replace.
-replace() { OLD="$2" NEW="$3" perl -i -0777 -pe 's/\Q$ENV{OLD}\E/$ENV{NEW}/g' "$1"; }
-read_attr() { grep -oP "$2"' = "\K[^"]+' "$1" | head -n1; }
+# Metachar-safe literal in-place replace. An empty OLD would match at every
+# position and splice NEW between every character, so refuse it: read_attr
+# returns empty whenever upstream moves the text an anchor keys on.
+replace() { # <file> <old> <new>
+  [ -n "$2" ] || {
+    log "refusing to replace the empty string in $1"
+    return 1
+  }
+  OLD="$2" NEW="$3" perl -i -0777 -pe 's/\Q$ENV{OLD}\E/$ENV{NEW}/g' "$1"
+}
 
-# Same, but starting from <anchor>. Both git-HEAD packages vendor a second
-# derivation -- nx-optimizer a Python wheel, citron-neo the tzdb archive -- whose
-# version and hash sit above the ones being bumped and would match first.
-read_attr_after() { # <file> <anchor> <attr>
-  ANCHOR="$2" ATTR="$3" perl -0777 -ne 'print $1 if /\Q$ENV{ANCHOR}\E.*?\b\Q$ENV{ATTR}\E = "([^"]+)"/s' "$1"
+# <anchor> starts the search. Both git-HEAD packages vendor a second derivation
+# -- nx-optimizer a Python wheel, citron-neo the tzdb archive -- whose version
+# and hash sit above the ones being bumped and would match first.
+read_attr() { # <file> <attr> [anchor]
+  ANCHOR="${3:-}" ATTR="$2" perl -0777 -ne 'print $1 if /\Q$ENV{ANCHOR}\E.*?\b\Q$ENV{ATTR}\E = "([^"]+)"/s' "$1"
 }
 
 prefetch() { # <url> <rev> [--fetch-submodules] -> SRI hash
-  nix run --quiet nixpkgs#nix-prefetch-git -- --url "$1" --rev "$2" ${3:+"$3"} --quiet 2>/dev/null \
+  nix-prefetch-git --url "$1" --rev "$2" ${3:+"$3"} --quiet 2>/dev/null \
     | jq -r '.hash // empty'
 }
 
@@ -43,8 +54,17 @@ prefetch_url() { # <url> -> SRI hash
   nix hash convert --hash-algo sha256 --to sri "$base32"
 }
 
+# Anonymous api.github.com allows 60 requests/hour per IP, and CI runners share
+# egress IPs with every other job on the fleet.
+declare -a GH_AUTH=()
+[ -z "${GITHUB_TOKEN:-}" ] || GH_AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN")
+
+gh_api() { # <url> -> JSON
+  curl -sS --max-time 30 "${GH_AUTH[@]}" "$1"
+}
+
 latest_release() { # <owner/repo> -> release JSON
-  curl -sS --max-time 30 "https://api.github.com/repos/$1/releases/latest"
+  gh_api "https://api.github.com/repos/$1/releases/latest"
 }
 
 # --- ryujinx-canary ---------------------------------------------------------
@@ -63,8 +83,8 @@ update_ryujinx_canary() {
   hash="$(prefetch https://git.ryujinx.app/projects/Ryubing "refs/tags/Canary-$new")"
   [ -n "$hash" ] || { log "prefetch failed"; return 1; }
 
-  replace "$file" "$old" "$new"
-  replace "$file" "$(read_attr "$file" hash)" "$hash"
+  replace "$file" "$old" "$new" || return 1
+  replace "$file" "$(read_attr "$file" hash)" "$hash" || return 1
 
   # The NuGet lockfile is not fetchable: it comes out of a build. Regenerating
   # it is the one step here that needs the whole .NET restore.
@@ -88,27 +108,27 @@ update_pcsx2() {
 
   new="$(latest_release PCSX2/pcsx2 | jq -r '.tag_name // empty' | sed 's/^v//')"
   [ -n "$new" ] || { log "could not read release"; return 1; }
-  old="$(read_attr_after "$file" 'pname = "pcsx2"' version)"
+  old="$(read_attr "$file" version 'pname = "pcsx2"')"
 
   log "pcsx2      $old -> $new"
   if [ "$old" != "$new" ]; then
     hash="$(prefetch https://github.com/PCSX2/pcsx2 "refs/tags/v$new")"
     [ -n "$hash" ] || { log "prefetch failed"; return 1; }
-    replace "$file" "$(read_attr_after "$file" 'repo = "pcsx2"' hash)" "$hash"
-    replace "$file" "$old" "$new"
+    replace "$file" "$(read_attr "$file" hash 'repo = "pcsx2"')" "$hash" || return 1
+    replace "$file" "$old" "$new" || return 1
     moved=0
   fi
 
-  new_patches="$(curl -sS --max-time 30 https://api.github.com/repos/PCSX2/pcsx2_patches/commits/main | jq -r '.sha // empty')"
+  new_patches="$(gh_api https://api.github.com/repos/PCSX2/pcsx2_patches/commits/main | jq -r '.sha // empty')"
   [ -n "$new_patches" ] || { log "could not read pcsx2_patches HEAD"; return 1; }
-  old_patches="$(read_attr_after "$file" 'repo = "pcsx2_patches"' rev)"
+  old_patches="$(read_attr "$file" rev 'repo = "pcsx2_patches"')"
 
   log "patches    ${old_patches:0:9} -> ${new_patches:0:9}"
   if [ "$old_patches" != "$new_patches" ]; then
     patches_hash="$(prefetch https://github.com/PCSX2/pcsx2_patches "$new_patches")"
     [ -n "$patches_hash" ] || { log "prefetch failed"; return 1; }
-    replace "$file" "$(read_attr_after "$file" "rev = \"$old_patches\"" hash)" "$patches_hash"
-    replace "$file" "$old_patches" "$new_patches"
+    replace "$file" "$(read_attr "$file" hash "rev = \"$old_patches\"")" "$patches_hash" || return 1
+    replace "$file" "$old_patches" "$new_patches" || return 1
     moved=0
   fi
 
@@ -139,10 +159,10 @@ update_release_asset() { # <file> <owner/repo> <asset-jq-filter> [extra-asset]
   [ -z "$extra" ] || extra_hash="$(prefetch_url "$base/$extra")" || { log "prefetch failed"; return 1; }
 
   old_asset="$(read_attr "$file" asset)"
-  replace "$file" "$old_asset" "$asset"
-  replace "$file" "$old_ver" "$ver"
-  replace "$file" "$(read_attr_after "$file" 'src = fetchurl' hash)" "$hash"
-  [ -z "$extra" ] || replace "$file" "$(read_attr_after "$file" "${extra%%.*} = fetchurl" hash)" "$extra_hash"
+  replace "$file" "$old_asset" "$asset" || return 1
+  replace "$file" "$old_ver" "$ver" || return 1
+  replace "$file" "$(read_attr "$file" hash 'src = fetchurl')" "$hash" || return 1
+  [ -z "$extra" ] || replace "$file" "$(read_attr "$file" hash "${extra%%.*} = fetchurl")" "$extra_hash" || return 1
 }
 
 # --- git-HEAD packages ------------------------------------------------------
@@ -153,10 +173,10 @@ update_github_head() { # <pname> <file> <owner/repo> <branch> <version-prefix> [
   local pname="$1" file="$2" repo="$3" branch="$4" prefix="$5" submodules="${6:-}"
   local json rev date old_rev old_ver new_ver hash
 
-  json="$(curl -sS --max-time 30 "https://api.github.com/repos/$repo/commits/$branch")"
+  json="$(gh_api "https://api.github.com/repos/$repo/commits/$branch")"
   rev="$(jq -r '.sha // empty' <<<"$json")"
   date="$(jq -r '.commit.committer.date // empty' <<<"$json" | cut -dT -f1)"
-  [ -n "$rev" ] || { log "could not read HEAD"; return 1; }
+  [ -n "$rev" ] && [ -n "$date" ] || { log "could not read HEAD"; return 1; }
 
   old_rev="$(read_attr "$file" rev)"
   log "${old_rev:0:9} -> ${rev:0:9} ($date)"
@@ -165,19 +185,20 @@ update_github_head() { # <pname> <file> <owner/repo> <branch> <version-prefix> [
   hash="$(prefetch "https://github.com/$repo" "$rev" ${submodules:+"$submodules"})"
   [ -n "$hash" ] || { log "prefetch failed"; return 1; }
 
-  old_ver="$(read_attr_after "$file" "pname = \"$pname\"" version)"
+  old_ver="$(read_attr "$file" version "pname = \"$pname\"")"
   new_ver="$prefix-unstable-$date"
   [ -n "$old_ver" ] || { log "could not read version"; return 1; }
 
-  replace "$file" "$old_rev" "$rev"
-  replace "$file" "$old_ver" "$new_ver"
-  replace "$file" "$(read_attr_after "$file" "rev = \"$rev\"" hash)" "$hash"
+  replace "$file" "$old_rev" "$rev" || return 1
+  replace "$file" "$old_ver" "$new_ver" || return 1
+  replace "$file" "$(read_attr "$file" hash "rev = \"$rev\"")" "$hash" || return 1
 }
 
 # --- driver -----------------------------------------------------------------
 
 run() { # <name> <function...>
   want "$1" || return 0
+  MATCHED=1
   hdr "$1"
   local name="$1"
   shift
@@ -201,6 +222,13 @@ run panda3ds update_github_head panda3ds pkgs/panda3ds/package.nix \
   wheremyfoodat/Panda3DS master 0.9 --fetch-submodules
 run pcsx2 update_pcsx2
 run ryujinx-canary update_ryujinx_canary
+
+# Without this a typo in ONLY skips every package and still summarises success.
+[ -z "$ONLY" ] || [ "$MATCHED" = 1 ] || {
+  hdr "error"
+  log "unknown package: $ONLY"
+  exit 1
+}
 
 hdr "summary"
 log "bumped:    ${BUMPED[*]:-none}"
