@@ -64,7 +64,33 @@
         nixpkgs.overlays = [ self.overlays.default ];
       };
 
-      checks = forAllSystems (system: self.packages.${system});
+      # `nix flake check` only confirms nixosModules.default *is* a module, never
+      # that it evaluates, so a broken option here reaches consumers green.
+      checks = forAllSystems (
+        system:
+        self.packages.${system}
+        // {
+          nixos-module =
+            (nixpkgs.lib.nixosSystem {
+              inherit system;
+              modules = [
+                self.nixosModules.default
+                {
+                  boot.loader.grub.devices = [ "/dev/sda" ];
+                  fileSystems."/" = {
+                    device = "/dev/sda1";
+                    fsType = "ext4";
+                  };
+                  system.stateVersion = "26.05";
+                  programs.citron-neo.enable = true;
+                  programs.panda3ds.enable = true;
+                  programs.pcsx2.enable = true;
+                  programs.ryujinx-canary.enable = true;
+                }
+              ];
+            }).config.system.build.toplevel;
+        }
+      );
 
       devShells = forAllSystems (system: {
         default = pkgsFor.${system}.mkShellNoCC {
