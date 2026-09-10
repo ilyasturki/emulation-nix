@@ -80,7 +80,9 @@ nix.settings = {
 
 ## Updating
 
-`./scripts/update.sh` rewrites every package's version, rev, asset name and source hash in place; a weekly workflow runs it and opens a PR that `check.yml` then builds. `ONLY=citron-neo ./scripts/update.sh` does one.
+`nix develop --command ./scripts/update.sh` rewrites every package's version, rev, asset name and source hash in place; a weekly workflow runs it and opens a PR. It needs the dev shell for `jq`, `perl` and `nix-prefetch-git`. `ONLY=citron-neo` restricts it to one package.
+
+For `check.yml` to build that PR, the repository needs an `UPDATE_PAT` secret with contents and pull-request write scope: GitHub does not start workflow runs for events raised by the default `GITHUB_TOKEN`, so without it the weekly bump lands as a PR with no checks at all.
 
 `ryujinx-canary` is the exception to fetch-and-hash: its NuGet lockfile comes out of a build, so the script also runs `nix build .#ryujinx-canary.fetch-deps` and regenerates `pkgs/ryujinx-canary/deps.json`.
 
