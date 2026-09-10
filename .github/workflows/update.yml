@@ -1,0 +1,45 @@
+name: update
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays, 05:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      # Ahead of the package bump so a lock-only move -- eden-nix ships daily --
+      # still counts as a change and lands in the same pull request.
+      - name: Update flake.lock
+        run: nix flake update
+
+      - name: Bump packages
+        id: bump
+        run: |
+          nix develop --command ./scripts/update.sh | tee /tmp/update.log
+          echo "changed=$(git diff --quiet && echo false || echo true)" >>"$GITHUB_OUTPUT"
+
+      - name: Open a pull request
+        if: steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: update/packages
+          title: "build: bump packages to their latest upstream revisions"
+          # The PR is deliberately not auto-merged: check.yml builds it first,
+          # and a canary bump that fails to compile should stay a PR.
+          body-path: /tmp/update.log
+          commit-message: "build: bump packages to their latest upstream revisions"
+          delete-branch: true

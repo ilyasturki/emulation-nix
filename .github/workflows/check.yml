@@ -1,0 +1,78 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Citron is a yuzu-lineage C++ tree, PCSX2 and Panda3DS are large C++ trees
+    # with vendored deps, and ryujinx-canary is a full .NET restore; none of them
+    # finish anywhere near the 6 h default on a cold cache.
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            atmosphere,
+            citron-neo,
+            eden,
+            hekate,
+            nx-optimizer,
+            panda3ds,
+            pcsx2,
+            ryujinx-canary,
+          ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The Citron source alone is ~490 MB before a single object is compiled.
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/share/boost /usr/local/lib/node_modules
+          df -h /
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Set up Cachix
+        uses: cachix/cachix-action@v17
+        with:
+          name: emulation-nix
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          # Only main populates the cache: a pull request is an unreviewed bump,
+          # and fork PRs have no token to push with anyway.
+          skipPush: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Build
+        run: nix build --print-build-logs '.#${{ matrix.package }}'
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Evaluate every flake output
+        run: nix flake check --no-build --all-systems
+
+      - name: Formatting
+        run: nix fmt -- --ci

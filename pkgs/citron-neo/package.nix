@@ -1,0 +1,181 @@
+{
+  lib,
+  stdenv,
+  fetchFromGitHub,
+  fetchurl,
+  cmake,
+  ninja,
+  pkg-config,
+  glslang,
+  unzip,
+  qt6Packages,
+  wrapGAppsHook3,
+  alsa-lib,
+  boost,
+  dbus,
+  ffmpeg,
+  fmt,
+  gsettings-desktop-schemas,
+  gtk3,
+  libGL,
+  libdecor,
+  libdrm,
+  libopus,
+  libpulseaudio,
+  libusb1,
+  libva,
+  libx11,
+  libxcb,
+  libxcursor,
+  libxext,
+  libxfixes,
+  libxi,
+  libxkbcommon,
+  libxrandr,
+  lz4,
+  nlohmann_json,
+  nv-codec-headers-12,
+  openssl,
+  pipewire,
+  udev,
+  vulkan-loader,
+  wayland,
+  wayland-protocols,
+  wayland-scanner,
+  zlib,
+  zstd,
+}:
+
+let
+  # externals/nx_tzdb builds this from the tzdb_to_nx submodule when it finds
+  # git, make and date -- and that build fetches IANA tzdata over the network,
+  # which the sandbox forbids. Unpacking the release archive upstream would
+  # otherwise download, into the directory its EXISTS guard checks, takes both
+  # branches out of play. The version is pinned by nx_tzdb's own CMakeLists.
+  nxTzdbVersion = "221202";
+  nxTzdb = fetchurl {
+    url = "https://github.com/lat9nq/tzdb_to_nx/releases/download/${nxTzdbVersion}/${nxTzdbVersion}.zip";
+    hash = "sha256-mRzW+iIwrU1zsxHmf+0RArU8BShAoEMvCz+McXFFK3c=";
+  };
+in
+stdenv.mkDerivation {
+  pname = "citron-neo";
+  version = "0-unstable-2026-09-05";
+
+  src = fetchFromGitHub {
+    owner = "citron-neo";
+    repo = "emulator";
+    rev = "91bbce7231cd6fcf6c4775ff61d4210a022c0e5d";
+    hash = "sha256-Z+35EEAkXOMYw0Umqtoq2U0/0h6UxMvVdii4hInFtXw=";
+    # Every external lives in externals/ as a submodule and CITRON_USE_CPM is
+    # off by default, so this is the whole dependency tree: nothing is fetched
+    # at configure time.
+    fetchSubmodules = true;
+  };
+
+  nativeBuildInputs = [
+    cmake
+    ninja
+    pkg-config
+    glslang
+    unzip
+    wayland-scanner
+    qt6Packages.wrapQtAppsHook
+    qt6Packages.qttools
+    wrapGAppsHook3
+  ];
+
+  buildInputs = [
+    qt6Packages.qtbase
+    qt6Packages.qtmultimedia
+    qt6Packages.qtwayland
+
+    # Citron's Qt file dialog uses the GTK backend, which aborts without
+    # org.gtk.Settings.FileChooser.
+    gtk3
+    gsettings-desktop-schemas
+
+    vulkan-loader
+
+    boost
+    ffmpeg
+    fmt
+    libopus
+    libusb1
+    libva
+    lz4
+    nlohmann_json
+    nv-codec-headers-12
+    openssl
+    zlib
+    zstd
+
+    alsa-lib
+    libpulseaudio
+    pipewire
+
+    dbus
+    libGL
+    libdrm
+    libdecor
+    libxkbcommon
+    wayland
+    wayland-protocols
+    udev
+    libx11
+    libxcb
+    libxcursor
+    libxext
+    libxfixes
+    libxi
+    libxrandr
+  ];
+
+  preConfigure = ''
+    mkdir -p build/externals/nx_tzdb/nx_tzdb
+    unzip -q ${nxTzdb} -d build/externals/nx_tzdb/nx_tzdb
+  '';
+
+  cmakeFlags = [
+    (lib.cmakeBool "CITRON_USE_CPM" false)
+    (lib.cmakeBool "CITRON_USE_BUNDLED_VCPKG" false)
+    (lib.cmakeBool "CITRON_USE_BUNDLED_FFMPEG" false)
+    (lib.cmakeBool "CITRON_TESTS" false)
+    (lib.cmakeBool "CITRON_USE_PRECOMPILED_HEADERS" false)
+    (lib.cmakeBool "CITRON_ENABLE_LTO" false)
+    # Paired with the preConfigure unpack above: ON keeps CMake out of the
+    # tzdb_to_nx branch, and the directory already being there keeps it out of
+    # the download.
+    (lib.cmakeBool "CITRON_DOWNLOAD_TIME_ZONE_DATA" true)
+    (lib.cmakeBool "ENABLE_QT" true)
+    (lib.cmakeBool "ENABLE_QT_TRANSLATION" true)
+    (lib.cmakeBool "ENABLE_SDL2" true)
+    (lib.cmakeBool "ENABLE_CUBEB" true)
+    (lib.cmakeBool "ENABLE_WEB_SERVICE" false)
+    (lib.cmakeBool "CITRON_USE_QT_MULTIMEDIA" true)
+    (lib.cmakeBool "CITRON_USE_QT_WEB_ENGINE" false)
+  ];
+
+  qtWrapperArgs = [ "--prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ vulkan-loader ]}" ];
+
+  dontWrapGApps = true;
+  preFixup = ''
+    qtWrapperArgs+=("''${gappsWrapperArgs[@]}")
+  '';
+
+  postInstall = ''
+    install -Dm644 $src/dist/72-citron-input.rules -t $out/lib/udev/rules.d
+    install -Dm644 $src/dist/org.citron_emu.citron.desktop -t $out/share/applications
+    install -Dm644 $src/dist/org.citron_emu.citron.metainfo.xml -t $out/share/metainfo
+    install -Dm644 $src/dist/citron.svg $out/share/icons/hicolor/scalable/apps/org.citron_emu.citron.svg
+  '';
+
+  meta = {
+    description = "Citron NEO: Nintendo Switch emulator, continuation of the Citron fork of yuzu";
+    homepage = "https://citron-neo.org/";
+    changelog = "https://github.com/citron-neo/emulator/commits/main";
+    license = lib.licenses.gpl3Plus;
+    mainProgram = "citron";
+    platforms = [ "x86_64-linux" ];
+  };
+}
