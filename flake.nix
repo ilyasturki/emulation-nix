@@ -22,12 +22,14 @@
 
       # nx-optimizer ships under CC-BY-NC, which nixpkgs treats as unfree.
       # Consumers of `overlays.default` need `allowUnfree` for that one attribute.
-      pkgsFor =
+      pkgsFor = forAllSystems (
         system:
         import nixpkgs {
           inherit system;
-          config.allowUnfree = true;
-        };
+          config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "nx-optimizer";
+          overlays = [ self.overlays.default ];
+        }
+      );
     in
     {
       overlays.default = final: _prev: {
@@ -41,24 +43,18 @@
         eden = eden-nix.packages.${final.stdenv.hostPlatform.system}.eden;
       };
 
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = pkgsFor system;
-        in
-        {
-          inherit (pkgs.extend self.overlays.default)
-            atmosphere
-            citron-neo
-            hekate
-            nx-optimizer
-            panda3ds
-            pcsx2
-            ryujinx-canary
-            ;
-          eden = eden-nix.packages.${system}.eden;
-        }
-      );
+      packages = forAllSystems (system: {
+        inherit (pkgsFor.${system})
+          atmosphere
+          citron-neo
+          hekate
+          nx-optimizer
+          panda3ds
+          pcsx2
+          ryujinx-canary
+          ;
+        eden = eden-nix.packages.${system}.eden;
+      });
 
       nixosModules.default = {
         imports = [
@@ -70,24 +66,18 @@
 
       checks = forAllSystems (system: self.packages.${system});
 
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = pkgsFor system;
-        in
-        {
-          default = pkgs.mkShellNoCC {
-            packages = with pkgs; [
-              curl
-              git
-              jq
-              nix-prefetch-git
-              perl
-            ];
-          };
-        }
-      );
+      devShells = forAllSystems (system: {
+        default = pkgsFor.${system}.mkShellNoCC {
+          packages = with pkgsFor.${system}; [
+            curl
+            git
+            jq
+            nix-prefetch-git
+            perl
+          ];
+        };
+      });
 
-      formatter = forAllSystems (system: (pkgsFor system).nixfmt-tree);
+      formatter = forAllSystems (system: pkgsFor.${system}.nixfmt-tree);
     };
 }
