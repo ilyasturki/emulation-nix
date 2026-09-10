@@ -111,19 +111,14 @@ buildDotnetModule rec {
   # left to autodetect, SDL picks the Wayland driver and the window never appears.
   makeWrapperArgs = [ "--set SDL_VIDEODRIVER x11" ];
 
-  # libsoundio dlopens the sndio soname, which nixpkgs' sndio does not ship.
-  preInstall = ''
-    mkdir -p $out/lib/sndio-6
-    ln -s ${sndio}/lib/libsndio.so $out/lib/sndio-6/libsndio.so.6
-  '';
-
   preFixup = ''
-    mkdir -p $out/share/{applications,icons/hicolor/scalable/apps,mime/packages}
+    mkdir -p $out/share/{applications,icons/hicolor/256x256/apps,mime/packages}
 
     pushd ${src}/distribution/linux
-    install -D ./Ryujinx.desktop  $out/share/applications/Ryujinx.desktop
-    install -D ./mime/Ryujinx.xml $out/share/mime/packages/Ryujinx.xml
-    install -D ../misc/Logo.svg   $out/share/icons/hicolor/scalable/apps/Ryujinx.svg
+    install -Dm644 ./app.ryujinx.Ryujinx.desktop $out/share/applications/app.ryujinx.Ryujinx.desktop
+    install -Dm755 ./Ryujinx.sh                  $out/bin/Ryujinx.sh
+    install -Dm644 ./mime/Ryujinx.xml            $out/share/mime/packages/Ryujinx.xml
+    install -Dm644 ../misc/Logo.png              $out/share/icons/hicolor/256x256/apps/app.ryujinx.Ryujinx.png
     popd
 
     ln -s $out/bin/Ryujinx $out/bin/ryujinx
