@@ -20,13 +20,13 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [ unzip ];
 
-  sourceRoot = ".";
+  dontUnpack = true;
 
   installPhase = ''
     runHook preInstall
 
     mkdir -p $out/share/hekate
-    cp -r bootloader hekate_ctcaer_*.bin $out/share/hekate/
+    unzip -q $src -d $out/share/hekate
 
     runHook postInstall
   '';

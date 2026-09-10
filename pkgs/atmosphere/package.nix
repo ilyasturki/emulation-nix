@@ -25,13 +25,13 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [ unzip ];
 
-  sourceRoot = ".";
+  dontUnpack = true;
 
   installPhase = ''
     runHook preInstall
 
     mkdir -p $out/share/atmosphere
-    cp -r atmosphere switch hbmenu.nro $out/share/atmosphere/
+    unzip -q $src -d $out/share/atmosphere
     install -Dm444 ${finalAttrs.fusee} $out/share/atmosphere/fusee.bin
 
     runHook postInstall
