@@ -95,11 +95,13 @@
       devShells = forAllSystems (system: {
         default = pkgsFor.${system}.mkShellNoCC {
           packages = with pkgsFor.${system}; [
+            actionlint
             curl
             git
             jq
             nix-prefetch-git
             perl
+            shellcheck
           ];
         };
       });

@@ -80,3 +80,10 @@ jobs:
 
       - name: Formatting
         run: nix fmt -- --ci
+
+      # nix fmt only covers *.nix, and update.sh rewrites every package in the repo.
+      - name: Shell
+        run: nix develop --command shellcheck scripts/update.sh
+
+      - name: Workflows
+        run: nix develop --command actionlint
