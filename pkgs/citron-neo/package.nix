@@ -132,8 +132,16 @@ stdenv.mkDerivation {
   ];
 
   preConfigure = ''
-    mkdir -p build/externals/nx_tzdb/nx_tzdb
-    unzip -q ${nxTzdb} -d build/externals/nx_tzdb/nx_tzdb
+    # nx_tzdb's EXISTS guard is version-blind, so a bumped NX_TZDB_VERSION would
+    # silently keep the archive unpacked here instead of the one it asked for.
+    grep -q 'set(NX_TZDB_VERSION "${nxTzdbVersion}")' externals/nx_tzdb/CMakeLists.txt || {
+      echo "nx_tzdb no longer pins NX_TZDB_VERSION ${nxTzdbVersion}; update nxTzdbVersion and its hash" >&2
+      exit 1
+    }
+
+    # preConfigure runs before the cmake hook assigns cmakeBuildDir's default.
+    mkdir -p "''${cmakeBuildDir:-build}/externals/nx_tzdb/nx_tzdb"
+    unzip -q ${nxTzdb} -d "''${cmakeBuildDir:-build}/externals/nx_tzdb/nx_tzdb"
   '';
 
   cmakeFlags = [
@@ -156,7 +164,19 @@ stdenv.mkDerivation {
     (lib.cmakeBool "CITRON_USE_QT_WEB_ENGINE" false)
   ];
 
-  qtWrapperArgs = [ "--prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ vulkan-loader ]}" ];
+  # The vendored cubeb and SDL2 reach the audio backends, and SDL2 reaches libudev
+  # for gamepad hotplug, through dlopen by soname, so nothing links them.
+  qtWrapperArgs = [
+    "--prefix LD_LIBRARY_PATH : ${
+      lib.makeLibraryPath [
+        alsa-lib
+        libpulseaudio
+        pipewire
+        udev
+        vulkan-loader
+      ]
+    }"
+  ];
 
   dontWrapGApps = true;
   preFixup = ''
@@ -167,6 +187,7 @@ stdenv.mkDerivation {
     install -Dm644 $src/dist/72-citron-input.rules -t $out/lib/udev/rules.d
     install -Dm644 $src/dist/org.citron_emu.citron.desktop -t $out/share/applications
     install -Dm644 $src/dist/org.citron_emu.citron.metainfo.xml -t $out/share/metainfo
+    install -Dm644 $src/dist/org.citron_emu.citron.xml -t $out/share/mime/packages
     install -Dm644 $src/dist/citron.svg $out/share/icons/hicolor/scalable/apps/org.citron_emu.citron.svg
   '';
 
