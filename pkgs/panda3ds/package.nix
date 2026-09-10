@@ -74,7 +74,7 @@ stdenv.mkDerivation (finalAttrs: {
 
     install -Dm755 Alber -t $out/bin
     install -Dm644 $src/.github/Alber.desktop -t $out/share/applications
-    install -Dm644 $src/docs/img/Alber.png $out/share/icons/hicolor/256x256/apps/Alber.png
+    install -Dm644 $src/docs/img/Alber.png $out/share/icons/hicolor/512x512/apps/Alber.png
 
     runHook postInstall
   '';
