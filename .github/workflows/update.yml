@@ -9,17 +9,25 @@ permissions:
   contents: write
   pull-requests: write
 
+# A manual dispatch during the cron run would have two jobs force-pushing
+# update/packages and opening a pull request on it at the same time.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # Two submodule prefetches (~490 MB for citron alone) plus a full NuGet
+    # restore for ryujinx; check.yml budgets 350 minutes for the same trees.
+    timeout-minutes: 350
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@v23
 
       # Ahead of the package bump so a lock-only move -- eden-nix ships daily --
       # still counts as a change and lands in the same pull request.
@@ -28,14 +36,30 @@ jobs:
 
       - name: Bump packages
         id: bump
+        env:
+          # Anonymous api.github.com is 60 requests/hour per IP, shared fleet-wide.
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          nix develop --command ./scripts/update.sh | tee /tmp/update.log
+          set -o pipefail
+          status=0
+          # This log is the pull request body verbatim, so Nix's stderr -- the
+          # dirty-tree warning after `nix flake update`, store fetches on a cold
+          # runner -- must stay in the job log and out of it.
+          nix develop --command ./scripts/update.sh | tee /tmp/update.log || status=$?
+          # update.sh exits 1 when individual packages fail but still reaches its
+          # summary; anything that dies earlier is a hard failure, not a partial
+          # bump, and must not open a pull request titling a stack trace "bump".
+          grep -q '==> summary' /tmp/update.log
+          [ "$status" -eq 0 ] || echo "::warning::some packages failed to update"
           echo "changed=$(git diff --quiet && echo false || echo true)" >>"$GITHUB_OUTPUT"
 
       - name: Open a pull request
         if: steps.bump.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
+          # Events raised by GITHUB_TOKEN do not start workflow runs, so without a
+          # PAT here the pull request below is never built by check.yml.
+          token: ${{ secrets.UPDATE_PAT || github.token }}
           branch: update/packages
           title: "build: bump packages to their latest upstream revisions"
           # The PR is deliberately not auto-merged: check.yml builds it first,
