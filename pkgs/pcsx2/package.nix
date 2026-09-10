@@ -86,7 +86,6 @@ llvmPackages.stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     cmake
-    kdePackages.extra-cmake-modules
     ninja
     pkg-config
     strip-nondeterminism
