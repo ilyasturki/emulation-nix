@@ -6,6 +6,7 @@
   ninja,
   pkg-config,
   qt6Packages,
+  rapidjson,
   SDL2,
   glslang,
   libGL,
@@ -28,8 +29,8 @@ stdenv.mkDerivation (finalAttrs: {
     repo = "Panda3DS";
     rev = "5aaa1d26565c834a6f1999026260e559f54aacf1";
     hash = "sha256-ZZ296lsjeFQM6mY6ERGe2WOPjTDMgPf+mCpeA2XmyfM=";
-    # 27 submodules and no FetchContent, CPM or file(DOWNLOAD) anywhere in the
-    # CMake tree: this is the whole dependency graph.
+    # 27 submodules, and third_party/discord-rpc is the only one whose CMake
+    # fetches anything at configure time; postPatch takes that out of play.
     fetchSubmodules = true;
   };
 
@@ -48,11 +49,20 @@ stdenv.mkDerivation (finalAttrs: {
     libx11
     qt6Packages.qtbase
     qt6Packages.qtwayland
+    rapidjson
     spirv-tools
     vulkan-headers
     vulkan-loader
     wayland
   ];
+
+  # discord-rpc probes thirdparty/ for the rapidjson tree and file(DOWNLOAD)s
+  # v1.1.0 when it is absent, with no STATUS check, so a sandboxed build fails
+  # later on the missing header rather than here. The name is one it searches for.
+  postPatch = ''
+    mkdir -p third_party/discord-rpc/thirdparty
+    ln -s ${rapidjson} third_party/discord-rpc/thirdparty/rapidjson-1.1.0
+  '';
 
   cmakeFlags = [
     (lib.cmakeBool "ENABLE_QT_GUI" true)

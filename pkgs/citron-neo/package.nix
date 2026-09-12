@@ -145,6 +145,10 @@ stdenv.mkDerivation {
   '';
 
   cmakeFlags = [
+    # The check tests every .gitmodules path for a .git entry, which
+    # fetchFromGitHub strips, so it fails on the first submodule regardless of
+    # the sources actually being there.
+    (lib.cmakeBool "CITRON_CHECK_SUBMODULES" false)
     (lib.cmakeBool "CITRON_USE_CPM" false)
     (lib.cmakeBool "CITRON_USE_BUNDLED_VCPKG" false)
     (lib.cmakeBool "CITRON_USE_BUNDLED_FFMPEG" false)

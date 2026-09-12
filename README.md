@@ -74,7 +74,7 @@ $ cp -r ${pkgs.hekate}/share/hekate/. /run/media/$USER/SWITCH/
 ```nix
 nix.settings = {
   extra-substituters = [ "https://emulation-nix.cachix.org" ];
-  extra-trusted-public-keys = [ "emulation-nix.cachix.org-1:<key>" ];
+  extra-trusted-public-keys = [ "emulation-nix.cachix.org-1:I3Aml1Db63RSk37MGt6sS/SY2nPg++StOWS1+M6OeDg=" ];
 };
 ```
 
