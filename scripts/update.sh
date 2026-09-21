@@ -217,7 +217,7 @@ run citron-neo update_github_head citron-neo pkgs/citron-neo/package.nix \
 run hekate update_release_asset pkgs/hekate/package.nix \
   CTCaer/hekate '[.assets[].name | select(test("_Nyx_.*\\.zip$"))][0] // empty'
 run nx-optimizer update_github_head nx-optimizer pkgs/nx-optimizer/package.nix \
-  MaxLastBreath/nx-optimizer master 3.3.0
+  MaxLastBreath/nx-optimizer main 3.3.0
 run panda3ds update_github_head panda3ds pkgs/panda3ds/package.nix \
   wheremyfoodat/Panda3DS master 0.9 --fetch-submodules
 run pcsx2 update_pcsx2
