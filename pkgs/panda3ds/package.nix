@@ -22,13 +22,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "panda3ds";
-  version = "0.9-unstable-2026-08-11";
+  version = "0.9-unstable-2026-10-04";
 
   src = fetchFromGitHub {
     owner = "wheremyfoodat";
     repo = "Panda3DS";
-    rev = "5aaa1d26565c834a6f1999026260e559f54aacf1";
-    hash = "sha256-ZZ296lsjeFQM6mY6ERGe2WOPjTDMgPf+mCpeA2XmyfM=";
+    rev = "92e53d26b898eb89d865f8407460900a88e7c0fa";
+    hash = "sha256-N7HmIVY5DSZ23YDthTzLDWbmPXnqx/qM5on8FHh8ONk=";
     # 27 submodules, and third_party/discord-rpc is the only one whose CMake
     # fetches anything at configure time; postPatch takes that out of play.
     fetchSubmodules = true;
