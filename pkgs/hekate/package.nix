@@ -7,15 +7,15 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "hekate";
-  version = "6.5.3";
+  version = "6.5.4";
 
   # The asset name carries the bundled Nyx version, which does not follow from
   # the release tag.
-  asset = "hekate_ctcaer_6.5.3_Nyx_1.9.3.zip";
+  asset = "hekate_ctcaer_6.5.4_Nyx_1.9.4.zip";
 
   src = fetchurl {
     url = "https://github.com/CTCaer/hekate/releases/download/v${finalAttrs.version}/${finalAttrs.asset}";
-    hash = "sha256-2em5MmPjdXf9YTeQt9Z+cFDrNbn1OH7MDbQSuiAMFgs=";
+    hash = "sha256-pe5PqpVvH/5J/dMdeVvj/VVsjf/Zy+1pzsfP+SuLQ/Y=";
   };
 
   nativeBuildInputs = [ unzip ];

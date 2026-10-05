@@ -7,20 +7,20 @@
 
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "atmosphere";
-  version = "1.11.2";
+  version = "1.12.0";
 
   # The asset name carries the bundled hbl and hbmenu versions and a commit
   # abbreviation, none of which follow from the release tag.
-  asset = "atmosphere-1.11.2-master-5388824be+hbl-2.4.5+hbmenu-3.6.1.zip";
+  asset = "atmosphere-1.12.0-master-28d6a2e11+hbl-2.4.5+hbmenu-3.6.1.zip";
 
   src = fetchurl {
     url = "https://github.com/Atmosphere-NX/Atmosphere/releases/download/${finalAttrs.version}/${finalAttrs.asset}";
-    hash = "sha256-Kc5ZriN75ZzSDBX/9GzR9eEn7CtgfmWjQS45Z5dEhkk=";
+    hash = "sha256-FEUaAzk1liqe2ADbaRhwbjct5DcOjQTqP8lyipNySeE=";
   };
 
   fusee = fetchurl {
     url = "https://github.com/Atmosphere-NX/Atmosphere/releases/download/${finalAttrs.version}/fusee.bin";
-    hash = "sha256-ymLhd+D14wXja0VdN/JrhT++k4/S/x51ONTjc84goYM=";
+    hash = "sha256-ZVkBfk31rEGM4J+zR8MtBxZJ+LbT1LrJqHRQX8i+0b0=";
   };
 
   nativeBuildInputs = [ unzip ];
