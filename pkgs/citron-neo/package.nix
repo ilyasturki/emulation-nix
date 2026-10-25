@@ -131,6 +131,15 @@ stdenv.mkDerivation {
     libxrandr
   ];
 
+  patches = [
+    # Upstream d169db4c7, lost when bfd8551ff reverted to the dynarmic submodule:
+    # without it the x64 backend does not compile.
+    ./dynarmic-x64-backend.patch
+    # A local struct reuses a member's name, which only GCC flags under the
+    # tree's -Werror=shadow.
+    ./texture-cache-shadow.patch
+  ];
+
   preConfigure = ''
     # nx_tzdb's EXISTS guard is version-blind, so a bumped NX_TZDB_VERSION would
     # silently keep the archive unpacked here instead of the one it asked for.
