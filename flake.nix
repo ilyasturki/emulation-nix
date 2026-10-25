@@ -32,16 +32,12 @@
       );
     in
     {
-      overlays.default = final: _prev: {
-        atmosphere = final.callPackage ./pkgs/atmosphere/package.nix { };
-        citron-neo = final.callPackage ./pkgs/citron-neo/package.nix { };
-        hekate = final.callPackage ./pkgs/hekate/package.nix { };
-        nx-optimizer = final.callPackage ./pkgs/nx-optimizer/package.nix { };
-        panda3ds = final.callPackage ./pkgs/panda3ds/package.nix { };
-        pcsx2 = final.callPackage ./pkgs/pcsx2/package.nix { };
-        ryujinx-canary = final.callPackage ./pkgs/ryujinx-canary/package.nix { };
-        eden = eden-nix.packages.${final.stdenv.hostPlatform.system}.eden;
-      };
+      overlays.default =
+        final: _prev:
+        import ./default.nix { pkgs = final; }
+        // {
+          eden = eden-nix.packages.${final.stdenv.hostPlatform.system}.eden;
+        };
 
       packages = forAllSystems (system: {
         inherit (pkgsFor.${system})
