@@ -54,6 +54,14 @@ or use the NixOS module, which applies the overlay and adds `programs.{eden,ryuj
 
 `nx-optimizer` is under CC-BY-NC, which nixpkgs treats as unfree — it needs `nixpkgs.config.allowUnfree` (or an `allowUnfreePredicate`) wherever you use it.
 
+Without flakes, `default.nix` takes your `pkgs` and returns every package but `eden`:
+
+```nix
+(import (fetchTarball "https://github.com/ilyasturki/emulation-nix/archive/main.tar.gz") { inherit pkgs; }).citron-neo
+```
+
+That builds against your nixpkgs rather than this flake's pin, so nothing comes from the cache.
+
 ### Custom firmware
 
 `atmosphere` and `hekate` are SD card payloads, not Linux programs, so they install nothing into `bin`. Source-building them needs the devkitA64 toolchain, which nixpkgs does not package; these are the upstream release archives, unpacked and pinned.
