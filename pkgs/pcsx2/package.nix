@@ -43,8 +43,8 @@ let
   pcsx2_patches = fetchFromGitHub {
     owner = "PCSX2";
     repo = "pcsx2_patches";
-    rev = "7e1b6936ad2a70c9e28ae21c7c2f3b1510a1736f";
-    hash = "sha256-kcyV/mqzFsO2bdnu9CeUHmNWCQYde0htfpGv9fwENSo=";
+    rev = "ba8ef4f42c353d8ee44d572f8111b10db54a3f0b";
+    hash = "sha256-AiZ2BHNyPX+FmxpZxCbYpRw+C2n3xNaOcXbyH+qqPn8=";
   };
 
   inherit (qt6)

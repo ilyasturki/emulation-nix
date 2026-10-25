@@ -79,7 +79,7 @@ let
 in
 stdenvNoCC.mkDerivation {
   pname = "nx-optimizer";
-  version = "3.3.0-unstable-2026-07-17";
+  version = "3.3.0-unstable-2026-10-16";
 
   src = fetchFromGitHub {
     owner = "MaxLastBreath";
@@ -87,8 +87,8 @@ stdenvNoCC.mkDerivation {
     # master rather than the manager-3.2.0 release (2025-10-11): Eden and Citron
     # Neo prepend an entry to the resolution_setup enum, so every resolution
     # 3.2.0 writes for them lands one slot off. Fixed upstream 2026-07-17.
-    rev = "c41e68439ccd0c19bffc8a5bab08ffdf0b81b992";
-    hash = "sha256-Rqfz1YSQ4/L0FPLv7x3Raus7A6KMNxgVGeT7H0RifI0=";
+    rev = "bd98bb3c9ee7eb16c2dd3c51a8c6ecf168330cf3";
+    hash = "sha256-S8z8rJ+Pi9Sd/e3PJGJcOxfX6Q0mYC2ifwsijPfyjkA=";
   };
 
   nativeBuildInputs = [
