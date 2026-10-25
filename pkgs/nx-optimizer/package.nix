@@ -115,7 +115,7 @@ stdenvNoCC.mkDerivation {
     # store. The wrapper's working directory is writable, so anchor them there
     # alongside TOTKOptimizer.ini and the logs.
     substituteInPlace src/modules/GameManager/FileManager.py \
-      --replace-fail 'os.path.join(__ROOT__, "backup", GameName)' 'os.path.join(os.getcwd(), "backup", GameName)'
+      --replace-fail 'os.path.join(__LOCAL__, "backup", GameName)' 'os.path.join(os.getcwd(), "backup", GameName)'
 
     # This call reached PIL through ttkbootstrap, which re-exported Image until
     # 1.20.3 dropped it. The file's own `from PIL import Image` is unusable here
