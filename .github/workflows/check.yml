@@ -108,7 +108,6 @@ jobs:
         run: |
           gh pr merge update/packages --squash --delete-branch \
             --match-head-commit "$GITHUB_SHA" \
-            --subject "build: bump packages to their latest upstream revisions" \
             --body ""
 
       # A merge made with GITHUB_TOKEN raises no push run, and main's run is the
