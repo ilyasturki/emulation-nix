@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -54,15 +55,20 @@ jobs:
           echo "changed=$(git diff --quiet && echo false || echo true)" >>"$GITHUB_OUTPUT"
 
       - name: Open a pull request
+        id: pr
         if: steps.bump.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
-          # Events raised by GITHUB_TOKEN do not start workflow runs, so this PR
-          # arrives unbuilt: dispatch check.yml against update/packages to test it.
           branch: update/packages
           title: "build: bump packages to their latest upstream revisions"
-          # Deliberately not auto-merged: a canary bump that fails to compile
-          # should stay a PR.
           body-path: /tmp/update.log
           commit-message: "build: bump packages to their latest upstream revisions"
           delete-branch: true
+
+      # The PR's own check run waits for manual approval when GITHUB_TOKEN opened
+      # it; a dispatch starts right away, and check.yml merges the PR if it passes.
+      - name: Build and merge on success
+        if: contains(fromJSON('["created", "updated"]'), steps.pr.outputs.pull-request-operation)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run check.yml --ref update/packages

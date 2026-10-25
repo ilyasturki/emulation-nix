@@ -87,3 +87,31 @@ jobs:
 
       - name: Workflows
         run: nix develop --command actionlint
+
+  # update.yml dispatches this run against its bump branch; a dispatch on main
+  # never matches, so the run below cannot loop.
+  merge:
+    needs: [build, lint]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/update/packages'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # --match-head-commit: an update run that force-pushed mid-build leaves a
+      # head this run never built.
+      - name: Merge the bump
+        run: |
+          gh pr merge update/packages --squash --delete-branch \
+            --match-head-commit "$GITHUB_SHA" \
+            --subject "build: bump packages to their latest upstream revisions" \
+            --body ""
+
+      # A merge made with GITHUB_TOKEN raises no push run, and main's run is the
+      # only one that fills the cache.
+      - name: Build main into the cache
+        run: gh workflow run check.yml --ref main

@@ -80,9 +80,11 @@ nix.settings = {
 
 ## Updating
 
-`nix develop --command ./scripts/update.sh` rewrites every package's version, rev, asset name and source hash in place; a weekly workflow runs it and opens a PR. It needs the dev shell for `jq`, `perl` and `nix-prefetch-git`. `ONLY=citron-neo` restricts it to one package.
+`nix develop --command ./scripts/update.sh` rewrites every package's version, rev, asset name and source hash in place. It needs the dev shell for `jq`, `perl` and `nix-prefetch-git`. `ONLY=citron-neo` restricts it to one package.
 
-That PR arrives without checks: GitHub does not start workflow runs for events raised by the default `GITHUB_TOKEN`. Build it with `gh workflow run check.yml --ref update/packages`, which skips the cache push because the ref is not `main`.
+A weekly workflow runs it, opens a PR on `update/packages`, and dispatches `check.yml` against that branch. If every package builds and lint passes, that run squash-merges the PR and dispatches `check.yml` on `main`, which pushes to the cache. If anything fails, the PR stays open and the next weekly run updates it. A package whose upstream can't be reached is left at its current version and doesn't block the merge.
+
+The PR's own `pull_request` check run sits at "approval required", because `GITHUB_TOKEN` opened it; the dispatched run is the one that counts. `gh workflow run check.yml --ref update/packages` retries the gate by hand.
 
 `ryujinx-canary` is the exception to fetch-and-hash: its NuGet lockfile comes out of a build, so the script also runs `nix build .#ryujinx-canary.fetch-deps` and regenerates `pkgs/ryujinx-canary/deps.json`.
 
