@@ -60,13 +60,13 @@ let
 in
 stdenv.mkDerivation {
   pname = "citron-neo";
-  version = "0-unstable-2026-10-24";
+  version = "0-unstable-2026-10-25";
 
   src = fetchFromGitHub {
     owner = "citron-neo";
     repo = "emulator";
-    rev = "56dad8119520160b744b959ba07f1e19538e97c1";
-    hash = "sha256-524LtsduT65hfPJYIVRyXtdui99pKduU/2Fhm99Y+5k=";
+    rev = "c3aa70f81e15ea97ee85b6a9a71cbf75d370851e";
+    hash = "sha256-2oiKew3ivgGFtQilA6UpjtHBVOyFV1MFlE53ZcXonPI=";
     # Every external lives in externals/ as a submodule and CITRON_USE_CPM is
     # off by default, so this is the whole dependency tree: nothing is fetched
     # at configure time.
