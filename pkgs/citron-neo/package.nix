@@ -137,6 +137,10 @@ stdenv.mkDerivation {
     ./texture-cache-shadow.patch
   ];
 
+  # GCC can't see BucketTree::GetOffsets fill its out-parameter, and the tree's
+  # -Werror=all turns that into a failure.
+  env.NIX_CFLAGS_COMPILE = "-Wno-error=maybe-uninitialized";
+
   preConfigure = ''
     # nx_tzdb's EXISTS guard is version-blind, so a bumped NX_TZDB_VERSION would
     # silently keep the archive unpacked here instead of the one it asked for.
