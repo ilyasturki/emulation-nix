@@ -60,14 +60,14 @@ let
 in
 stdenv.mkDerivation {
   pname = "citron-neo";
-  version = "0-unstable-2026-10-24";
+  version = "0-unstable-2026-11-06";
 
   src = fetchFromGitHub {
     # Re-host of citron-neo/emulator, whose fork network GitHub blocked on a Nintendo DMCA notice.
     owner = "Kabosu-Emu";
     repo = "Kabosu";
-    rev = "56dad8119520160b744b959ba07f1e19538e97c1";
-    hash = "sha256-524LtsduT65hfPJYIVRyXtdui99pKduU/2Fhm99Y+5k=";
+    rev = "7dc47bab8469fabf810fccf88f938f4e75fe3852";
+    hash = "sha256-/2V6lDW1RYeUt0cjQdrYZjttZHOU6j68fKZXl65yg10=";
     # Every external lives in externals/ as a submodule and CITRON_USE_CPM is
     # off by default, so this is the whole dependency tree: nothing is fetched
     # at configure time.
